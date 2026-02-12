@@ -17,6 +17,9 @@ package com.github.raghav;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -24,64 +27,74 @@ import org.apache.hadoop.fs.Path;
 
 public class Main {
 
-  public static final Configuration CONF = setConf();
-  public static final FileSystem FS = evalFs();
+    public static final Configuration CONF = setConf();
+    public static final FileSystem FS = evalFs();
+    private static final String BASE_PATH = "/user/hive/warehouse/test_db.db/test_tbl/part_col=pc";
 
-  private static Configuration setConf() {
-    Configuration conf = new Configuration();
-    conf.set("fs.defaultFS", "hdfs://localhost:9000");
-    conf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
-    conf.set("hadoop.security.authentication", "simple");
+    private static Configuration setConf() {
+        Configuration conf = new Configuration();
+        conf.set("fs.defaultFS", "hdfs://localhost:9000");
+        conf.set("fs.hdfs.impl", "org.apache.hadoop.hdfs.DistributedFileSystem");
+        conf.set("hadoop.security.authentication", "simple");
 
-    /*
-    System.setProperty("java.security.krb5.conf", "/etc/krb5.conf");
-    System.setProperty("java.security.krb5.realm", "ORG.COM");
-    System.setProperty("java.security.krb5.kdc", "localhost:88");
-    conf.set("hadoop.security.authentication", "kerberos");
-    conf.set("hadoop.security.authorization", "true");
-    conf.set("dfs.namenode.kerberos.principal", "nn/_HOST@ORG.COM");
-    conf.set("dfs.namenode.keytab.file", "/etc/security/keytabs/hdfs.headless.keytab");
-    conf.set("dfs.datanode.kerberos.principal", "dn/_HOST@ORG.COM");
-    conf.set("dfs.datanode.keytab.file", "/etc/security/keytabs/hdfs.headless.keytab");
+        /*
+        System.setProperty("java.security.krb5.conf", "/etc/krb5.conf");
+        System.setProperty("java.security.krb5.realm", "ORG.COM");
+        System.setProperty("java.security.krb5.kdc", "localhost:88");
+        conf.set("hadoop.security.authentication", "kerberos");
+        conf.set("hadoop.security.authorization", "true");
+        conf.set("dfs.namenode.kerberos.principal", "nn/_HOST@ORG.COM");
+        conf.set("dfs.namenode.keytab.file", "/etc/security/keytabs/hdfs.headless.keytab");
+        conf.set("dfs.datanode.kerberos.principal", "dn/_HOST@ORG.COM");
+        conf.set("dfs.datanode.keytab.file", "/etc/security/keytabs/hdfs.headless.keytab");
 
-    UserGroupInformation.setConfiguration(conf);
-    try {
-      UserGroupInformation.loginUserFromKeytab(
-          "hdfs-optimus@ORG.COM", "/etc/security/keytabs/hdfs.headless.keytab");
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to login with keytab", e);
-    }
-    */
+        UserGroupInformation.setConfiguration(conf);
+        try {
+          UserGroupInformation.loginUserFromKeytab(
+              "hdfs-optimus@ORG.COM", "/etc/security/keytabs/hdfs.headless.keytab");
+        } catch (Exception e) {
+          throw new RuntimeException("Failed to login with keytab", e);
+        }
+        */
 
-    return conf;
-  }
-
-  private static FileSystem evalFs() {
-    final String HDFS_URI = "hdfs://localhost:9000/";
-    FileSystem fs = null;
-    try {
-      fs = FileSystem.get(new Path(HDFS_URI).toUri(), CONF);
-    } catch (IOException e) {
-      throw new RuntimeException("Failed to get FileSystem instance", e);
-    }
-    return fs;
-  }
-
-  public static void main(String[] args) throws InterruptedException {
-    int threadCount = 8;
-    int partitionCount = 5000;
-    int countPerThread = partitionCount / threadCount;
-    List<DirectoryThread> lsThread =
-        IntStream.range(0, threadCount)
-            .mapToObj(j -> new DirectoryThread(j * countPerThread, countPerThread))
-            .toList();
-
-    for (var thread : lsThread) {
-      thread.start();
+        return conf;
     }
 
-    for (var thread : lsThread) {
-      thread.join();
+    private static FileSystem evalFs() {
+        final String HDFS_URI = "hdfs://localhost:9000/";
+        FileSystem fs = null;
+        try {
+            fs = FileSystem.get(new Path(HDFS_URI).toUri(), CONF);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to get FileSystem instance", e);
+        }
+        return fs;
     }
-  }
+
+    public static void main(String[] args) {
+        int threadCount = 8;
+        int partitionCount = 5000;
+        int countPerThread = partitionCount / threadCount;
+
+        try (ExecutorService executor = Executors.newFixedThreadPool(threadCount)) {
+
+            List<CompletableFuture<Void>> futures = IntStream.range(0, threadCount)
+                    .mapToObj(j -> CompletableFuture.runAsync(
+                            () -> {
+                                int from = j * countPerThread;
+                                for (int i = from; i < from + countPerThread; i++) {
+                                    Path path = new Path(BASE_PATH + i);
+                                    try {
+                                        FS.mkdirs(path);
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
+                                    }
+                                }
+                            },
+                            executor))
+                    .toList();
+
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        }
+    }
 }

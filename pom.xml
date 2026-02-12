@@ -16,6 +16,12 @@ limitations under the License.
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
+  <parent>
+    <groupId>org.apache</groupId>
+    <artifactId>apache</artifactId>
+    <version>37</version>
+  </parent>
+
   <groupId>com.github.raghav</groupId>
   <artifactId>Concurrent-Partition-Gen</artifactId>
   <version>1.0-SNAPSHOT</version>
@@ -58,27 +64,17 @@ limitations under the License.
     </snapshotRepository>
   </distributionManagement>
 
+  <!-- To update properties versions to latest versions ignoring alpha, beta, milestone and release candidates use: -->
+  <!-- mvn versions:update-properties -Dmaven.version.ignore='(?i).*-(alpha|beta|m|rc)([-. ]?\d+)?' -DgenerateBackupPoms=false -->
   <properties>
-    <google.java.format.version>1.25.2</google.java.format.version>
-    <hadoop.version>3.4.1</hadoop.version>
-    <maven.assembly.version>3.7.1</maven.assembly.version>
-    <maven.compiler.version>3.13.0</maven.compiler.version>
-    <maven.dependency.version>3.8.1</maven.dependency.version>
-    <maven.exec.version>3.5.0</maven.exec.version>
-    <maven.gpg.version>3.2.7</maven.gpg.version>
-    <maven.jar.version>3.4.2</maven.jar.version>
-    <maven.javadoc.version>3.11.2</maven.javadoc.version>
-    <maven.source.version>3.3.1</maven.source.version>
+    <hadoop.version>3.4.2</hadoop.version>
+    <javaVersion>21</javaVersion>
+    <palantir.java.format.version>2.86.0</palantir.java.format.version>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    <spotless.version>2.44.4</spotless.version>
+    <spotless.version>3.2.1</spotless.version>
   </properties>
 
-  <dependencyManagement>
-    <dependencies></dependencies>
-  </dependencyManagement>
-
   <dependencies>
-
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId>
@@ -103,17 +99,7 @@ limitations under the License.
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>${maven.compiler.version}</version>
-        <configuration>
-          <source>17</source>
-          <target>17</target>
-        </configuration>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-assembly-plugin</artifactId>
-        <version>${maven.assembly.version}</version>
         <configuration>
           <descriptorRefs>
             <descriptorRef>jar-with-dependencies</descriptorRef>
@@ -135,28 +121,29 @@ limitations under the License.
         <version>${spotless.version}</version>
         <configuration>
           <java>
-            <googleJavaFormat>
-              <version>${google.java.format.version}</version>
-              <style>GOOGLE</style>
-            </googleJavaFormat>
-            <removeUnusedImports></removeUnusedImports>
-            <importOrder></importOrder>
+            <palantirJavaFormat>
+              <version>${palantir.java.format.version}</version>
+              <style>PALANTIR</style>
+            </palantirJavaFormat>
+            <removeUnusedImports/>
+            <importOrder/>
             <licenseHeader>
               <file>style/java-header</file>
             </licenseHeader>
           </java>
+
           <markdown>
             <includes>
               <include>**/*.md</include>
             </includes>
-            <flexmark></flexmark>
+            <flexmark/>
           </markdown>
           <pom>
             <includes>
               <include>pom.xml</include>
             </includes>
             <sortPom>
-              <sortDependencies></sortDependencies>
+              <sortDependencies/>
               <sortProperties>true</sortProperties>
             </sortPom>
             <licenseHeader>
@@ -183,56 +170,4 @@ limitations under the License.
       </plugin>
     </plugins>
   </build>
-  <profiles>
-    <profile>
-      <id>release</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-source-plugin</artifactId>
-            <version>${maven.source.version}</version>
-            <executions>
-              <execution>
-                <id>attach-source</id>
-                <goals>
-                  <goal>jar-no-fork</goal>
-                </goals>
-                <phase>compile</phase>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-javadoc-plugin</artifactId>
-            <version>${maven.javadoc.version}</version>
-            <executions>
-              <execution>
-                <id>attach-javadocs</id>
-                <goals>
-                  <goal>jar</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-          <plugin>
-            <groupId>org.apache.maven.plugins</groupId>
-            <artifactId>maven-gpg-plugin</artifactId>
-            <version>${maven.gpg.version}</version>
-            <executions>
-              <execution>
-                <id>sign-artifacts</id>
-                <goals>
-                  <goal>sign</goal>
-                </goals>
-                <phase>verify</phase>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
 </project>
